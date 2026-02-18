@@ -5,26 +5,67 @@ import { useNavigate } from "react-router-dom";
 
 const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""));
 
+interface ChatMessage {
+  username: string;
+  text?: string;
+  image?: string;
+  voice?: string;
+  timestamp: string;
+}
+
 export default function Chatroom() {
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    socket.on("chat message", (msg: string) => {
+    // Authenticate socket with JWT
+    socket.emit("authenticate", localStorage.getItem("token"));
+
+    socket.on("chat message", (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg]);
     });
+
+    socket.on("chat image", (msg: ChatMessage) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    socket.on("chat voice", (msg: ChatMessage) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
     return () => {
       socket.off("chat message");
+      socket.off("chat image");
+      socket.off("chat voice");
     };
   }, []);
 
   const sendMessage = () => {
     if (!input.trim()) return;
-    // prepend username to message
-    socket.emit("chat message", `${user?.username || "Anonymous"}: ${input}`);
+    socket.emit("chat message", input);
     setInput("");
+  };
+
+  const sendImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      socket.emit("chat image", reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const sendVoice = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      socket.emit("chat voice", reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLogout = () => {
@@ -41,7 +82,15 @@ export default function Chatroom() {
 
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "300px", overflowY: "auto" }}>
         {messages.map((m, i) => (
-          <p key={i}>{m}</p>
+          <div key={i} style={{ marginBottom: "10px" }}>
+            <strong>{m.username}</strong>:{" "}
+            {m.text && <span>{m.text}</span>}
+            {m.image && <img src={m.image} alt="chat-img" style={{ maxWidth: "200px", display: "block" }} />}
+            {m.voice && <audio controls src={m.voice} />}
+            <small style={{ display: "block", color: "#888" }}>
+              {new Date(m.timestamp).toLocaleTimeString()}
+            </small>
+          </div>
         ))}
       </div>
 
@@ -50,9 +99,11 @@ export default function Chatroom() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type a message..."
-          style={{ width: "80%", marginRight: "10px" }}
+          style={{ width: "60%", marginRight: "10px" }}
         />
         <button onClick={sendMessage}>Send</button>
+        <input type="file" accept="image/*" onChange={sendImage} style={{ marginLeft: "10px" }} />
+        <input type="file" accept="audio/*" onChange={sendVoice} style={{ marginLeft: "10px" }} />
       </div>
     </div>
   );
