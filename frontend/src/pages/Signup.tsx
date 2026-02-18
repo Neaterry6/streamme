@@ -1,42 +1,31 @@
-import React, { useState } from "react";
-import axios from "axios";
+import { useState } from "react";
+import { signup as signupApi } from "../api/auth";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
-const Signup: React.FC = () => {
+export default function Signup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await axios.post("/api/auth/signup", { username, password });
-    if (res.data.success) {
-      navigate("/home");
-    } else {
-      alert("Signup failed");
+    try {
+      const { token } = await signupApi(username, password);
+      login(token);
+      navigate("/chatroom");
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Signup failed");
     }
   };
 
   return (
-    <div style={{ padding: "2rem", textAlign: "center" }}>
-      <h2>Create a StreamMe Account</h2>
-      <form onSubmit={handleSignup}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-        /><br />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        /><br />
-        <button type="submit">Signup</button>
-      </form>
-    </div>
+    <form onSubmit={handleSubmit}>
+      <h2>Signup</h2>
+      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" />
+      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+      <button type="submit">Signup</button>
+    </form>
   );
-};
-
-export default Signup;
+}
