@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { Innertube } = require("youtubei.js");
+const authMiddleware = require("../utils/authMiddleware");
 
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   try {
     const url = req.query.url;
     if (!url) return res.status(400).json({ error: "YouTube URL required" });
