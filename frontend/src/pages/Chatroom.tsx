@@ -1,63 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { useEffect, useState } from "react";
+import io from "socket.io-client";
 
-const socket = io(); // connects to backend at localhost:5000 via proxy
+const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""));
 
-const Chatroom: React.FC = () => {
+export default function Chatroom() {
   const [messages, setMessages] = useState<string[]>([]);
-  const [msg, setMsg] = useState("");
+  const [input, setInput] = useState("");
 
   useEffect(() => {
-    // Listen for incoming messages
-    socket.on("chatMessage", (message: string) => {
-      setMessages(prev => [...prev, message]);
+    socket.on("chat message", (msg: string) => {
+      setMessages((prev) => [...prev, msg]);
     });
-
-    // Cleanup listener on unmount
     return () => {
-      socket.off("chatMessage");
+      socket.off("chat message");
     };
   }, []);
 
   const sendMessage = () => {
-    if (msg.trim() !== "") {
-      socket.emit("chatMessage", msg);
-      setMsg("");
-    }
+    socket.emit("chat message", input);
+    setInput("");
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>StreamMe Chatroom</h2>
-      <div
-        style={{
-          border: "1px solid #ccc",
-          height: "300px",
-          overflowY: "scroll",
-          marginBottom: "1rem",
-          padding: "0.5rem",
-          backgroundColor: "#111",
-          color: "#fff"
-        }}
-      >
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: "0.5rem" }}>
-            {m}
-          </div>
-        ))}
+    <div>
+      <h2>Chatroom</h2>
+      <div>
+        {messages.map((m, i) => <p key={i}>{m}</p>)}
       </div>
-      <input
-        type="text"
-        value={msg}
-        onChange={e => setMsg(e.target.value)}
-        placeholder="Type a message..."
-        style={{ marginRight: "0.5rem", padding: "0.5rem" }}
-      />
-      <button onClick={sendMessage} style={{ padding: "0.5rem 1rem" }}>
-        Send
-      </button>
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+      <button onClick={sendMessage}>Send</button>
     </div>
   );
-};
-
-export default Chatroom;
+}
