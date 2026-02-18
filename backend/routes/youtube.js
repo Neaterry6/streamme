@@ -1,37 +1,24 @@
-// backend/routes/youtube.js
 const express = require("express");
-const axios = require("axios");
+const router = express.Router();
 const { Innertube } = require("youtubei.js");
 
-const router = express.Router();
-const BASE_URL = "https://api.qasimdev.dpdns.org";
-const API_KEY = "qasim-dev";
+router.get("/", async (req, res) => {
+  try {
+    const url = req.query.url;
+    if (!url) return res.status(400).json({ error: "YouTube URL required" });
 
-let yt;
-(async () => {
-  yt = await Innertube.create();
-})();
+    const yt = await Innertube.create();
+    const videoInfo = await yt.getInfo(url);
 
-// Search
-router.get("/search", async (req, res) => {
-  const query = req.query.q;
-  const results = await yt.search(query);
-  const videos = results.videos.map(v => ({
-    id: v.id,
-    title: v.title.text,
-    thumbnail: v.thumbnail[0].url,
-    views: v.view_count,
-    duration: v.duration,
-    author: v.author.name
-  }));
-  res.json(videos);
-});
-
-// Download
-router.get("/download", async (req, res) => {
-  const videoUrl = req.query.url;
-  const response = await axios.get(`${BASE_URL}/youtube?url=${videoUrl}&apikey=${API_KEY}`);
-  res.json(response.data);
+    res.json({
+      title: videoInfo.basic_info.title,
+      author: videoInfo.basic_info.author,
+      lengthSeconds: videoInfo.basic_info.length_seconds,
+      formats: videoInfo.streaming_data.adaptive_formats
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
