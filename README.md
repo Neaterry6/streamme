@@ -1,6 +1,4 @@
-Here’s a neat, professional README.md for your StreamMe project that ties together everything we’ve built — frontend, backend, logo, environment variables, and usage.
 
----
 
 📄 README.md
 
