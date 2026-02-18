@@ -1,15 +1,18 @@
-// backend/routes/social.js
 const express = require("express");
-const axios = require("axios");
-
 const router = express.Router();
-const BASE_URL = "https://api.qasimdev.dpdns.org";
-const API_KEY = "qasim-dev";
+const apiClient = require("../utils/apiClient");
+const authMiddleware = require("../utils/authMiddleware");
 
-router.get("/", async (req, res) => {
-  const postUrl = req.query.url;
-  const response = await axios.get(`${BASE_URL}/social?url=${postUrl}&apikey=${API_KEY}`);
-  res.json(response.data);
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const postUrl = req.query.url;
+    if (!postUrl) return res.status(400).json({ error: "URL required" });
+
+    const response = await apiClient.get("/social", { params: { url: postUrl } });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
