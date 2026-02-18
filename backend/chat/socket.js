@@ -96,13 +96,15 @@ module.exports = (io) => {
     });
 
     // Send private message
-    socket.on("private message", async ({ room, text }) => {
+    socket.on("private message", async ({ room, text, image, voice }) => {
       if (!socket.user) return;
 
       const message = new Message({
         username: socket.user.username,
         profilePic: socket.user.profilePic || "https://n.uguu.se/UttreQqr.jpg",
         text,
+        image,
+        voice,
         timestamp: new Date(),
         room,
         isPrivate: true
