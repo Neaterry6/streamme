@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StreamMe - Home</title>
+</head>
+<body>
+  <h1>StreamMe Home</h1>
+  <input type="text" id="search" placeholder="Search for songs or videos" />
+  <button onclick="search()">Search</button>
+  <div id="results"></div>
+
+  <script>
+    async function search() {
+      const query = document.getElementById("search").value;
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      document.getElementById("results").innerHTML = data.map(v =>
+        `<div>
+          <img src="${v.thumbnail}" width="120" />
+          <p>${v.title} by ${v.author}</p>
+          <p>${v.views} views</p>
+        </div>`
+      ).join("");
+    }
+  </script>
+</body>
+</html>
