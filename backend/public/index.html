@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StreamMe - Login</title>
+</head>
+<body>
+  <h1>Welcome to StreamMe</h1>
+  <form action="/api/auth/login" method="post">
+    <input type="text" name="username" placeholder="Username" required />
+    <input type="password" name="password" placeholder="Password" required />
+    <button type="submit">Login</button>
+  </form>
+  <form action="/api/auth/signup" method="post">
+    <input type="text" name="username" placeholder="New Username" required />
+    <input type="password" name="password" placeholder="New Password" required />
+    <button type="submit">Signup</button>
+  </form>
+</body>
+</html>
