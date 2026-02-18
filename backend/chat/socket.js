@@ -1,24 +1,62 @@
+const jwt = require("jsonwebtoken");
+
 module.exports = (io) => {
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("A user connected");
 
-    // Text chat
-    socket.on("chatMessage", (msg) => {
-      io.emit("chatMessage", msg);
+    // Authenticate with JWT
+    socket.on("authenticate", (token) => {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.user = decoded;
+        console.log(`User authenticated: ${decoded.username}`);
+      } catch (err) {
+        console.error("Invalid token:", err.message);
+        socket.disconnect();
+      }
     });
 
-    // Image uploads
-    socket.on("imageUpload", (imgData) => {
-      io.emit("imageUpload", imgData);
+    // Text messages
+    socket.on("chat message", (msg) => {
+      if (!socket.user) return socket.emit("error", "Not authenticated");
+
+      const messageObj = {
+        username: socket.user.username,
+        text: msg,
+        timestamp: new Date().toISOString(),
+      };
+
+      io.emit("chat message", messageObj);
     });
 
-    // Voice notes
-    socket.on("voiceNote", (audioData) => {
-      io.emit("voiceNote", audioData);
+    // Image messages
+    socket.on("chat image", (imgData) => {
+      if (!socket.user) return socket.emit("error", "Not authenticated");
+
+      const messageObj = {
+        username: socket.user.username,
+        image: imgData,
+        timestamp: new Date().toISOString(),
+      };
+
+      io.emit("chat image", messageObj);
+    });
+
+    // Voice messages
+    socket.on("chat voice", (voiceData) => {
+      if (!socket.user) return socket.emit("error", "Not authenticated");
+
+      const messageObj = {
+        username: socket.user.username,
+        voice: voiceData,
+        timestamp: new Date().toISOString(),
+      };
+
+      io.emit("chat voice", messageObj);
     });
 
     socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
+      console.log("A user disconnected");
     });
   });
 };
