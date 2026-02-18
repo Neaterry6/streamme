@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import logo from "../assets/logo.png"; // StreamMe logo
 
 const LoadingScreen: React.FC = () => {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setFadeOut(true), 2500); // 2.5s splash
+    const timer = setTimeout(() => setFadeOut(true), 2500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -23,7 +22,12 @@ const LoadingScreen: React.FC = () => {
         opacity: fadeOut ? 0 : 1,
       }}
     >
-      <img src={logo} alt="StreamMe Logo" style={{ width: "160px", marginBottom: "20px" }} />
+      {/* Using external logo URL */}
+      <img
+        src="https://n.uguu.se/UttreQqr.jpg"
+        alt="StreamMe Logo"
+        style={{ width: "160px", marginBottom: "20px" }}
+      />
       <h1 style={{ fontFamily: "sans-serif", fontSize: "2rem", color: "#e50914" }}>
         StreamMe
       </h1>
