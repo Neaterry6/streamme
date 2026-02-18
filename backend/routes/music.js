@@ -5,12 +5,12 @@ const authMiddleware = require("../utils/authMiddleware");
 
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const { platform, trackId } = req.query;
-    if (!platform || !trackId) {
-      return res.status(400).json({ error: "Platform and trackId required" });
+    const { song, artist } = req.query;
+    if (!song || !artist) {
+      return res.status(400).json({ error: "Song and artist required" });
     }
 
-    const response = await apiClient.get("/music", { params: { platform, id: trackId } });
+    const response = await apiClient.get("/lyrics", { params: { song, artist } });
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
