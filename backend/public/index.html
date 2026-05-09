@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StreamMe — Watch, Explore, Discover</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f0f;color:#fff;overflow-x:hidden}
+.sidebar{width:240px;background:#0f0f0f;height:100vh;position:fixed;left:0;top:0;overflow-y:auto;z-index:40;padding:12px}
+.sidebar a{display:flex;align-items:center;gap:20px;padding:10px 12px;border-radius:10px;color:#ddd;font-size:14px;transition:.2s;text-decoration:none}
+.sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,0.08);color:#fff}
+.main{margin-left:240px;padding:16px 24px}
+.search-bar{max-width:600px;margin:0 auto}
+.search-bar input{background:#1a1a1a;border:1px solid #333;border-radius:24px;padding:10px 16px;color:#fff;width:100%;font-size:15px;outline:none}
+.search-bar input:focus{border-color:#3ea6ff}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.video-card{cursor:pointer;transition:.2s;border-radius:12px;overflow:hidden}
+.video-card:hover{background:rgba(255,255,255,0.03)}
+.video-card .thumb{aspect-ratio:16/9;background:#1a1a1a;border-radius:12px;overflow:hidden;position:relative}
+.video-card .thumb img{width:100%;height:100%;object-fit:cover}
+.video-card .info{display:flex;gap:12px;padding:12px 4px}
+.video-card .info .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3ea6ff,#a855f7);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.image-card{border-radius:12px;overflow:hidden;cursor:pointer;transition:.3s;position:relative}
+.image-card:hover{transform:scale(1.02)}
+.image-card img{width:100%;height:250px;object-fit:cover}
+.image-card .overlay{position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,0.8));font-size:12px;opacity:0;transition:.3s}
+.image-card:hover .overlay{opacity:1}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.tool-card{background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:20px;transition:.2s}
+.tool-card:hover{border-color:#3ea6ff;transform:translateY(-2px)}
+.tool-card h3{font-size:16px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.tool-card p{font-size:13px;color:#888;margin-bottom:12px}
+.tool-card input,.tool-card select{background:#0f0f0f;border:1px solid #333;border-radius:8px;padding:8px 12px;color:#fff;width:100%;font-size:13px;outline:none;margin-bottom:8px}
+.tool-card input:focus{border-color:#3ea6ff}
+.tool-card button{background:#3ea6ff;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.tool-card button:hover{background:#2d8fd9}
+.tool-result{background:#0f0f0f;border:1px solid #333;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:#3ea6ff;max-height:200px;overflow:auto;white-space:pre-wrap;display:none}
+.nav-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.nav-tabs button{background:rgba(255,255,255,0.06);border:none;color:#aaa;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:.2s}
+.nav-tabs button.active,.nav-tabs button:hover{background:rgba(255,255,255,0.12);color:#fff}
+.page{display:none}
+.page.active{display:block}
+.loader{text-align:center;padding:40px;color:#666}
+.loader i{font-size:32px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#0f0f0f;border-top:1px solid #222;padding:8px 0;z-index:50;justify-content:space-around}
+.bottom-nav a{display:flex;flex-direction:column;align-items:center;gap:2px;color:#888;font-size:10px;text-decoration:none;padding:4px 12px}
+.bottom-nav a.active{color:#3ea6ff}
+.bottom-nav a i{font-size:20px}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:12px}.bottom-nav{display:flex}.video-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}.tools-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="text-xl font-bold mb-6 px-3 flex items-center gap-2">
+    <i class="fa-brands fa-youtube text-red-500 text-2xl"></i>
+    <span>StreamMe</span>
+  </div>
+  <a href="#" onclick="switchPage('home')" class="active" id="nav-home"><i class="fa-solid fa-house w-5"></i> Home</a>
+  <a href="#" onclick="switchPage('trending')" id="nav-trending"><i class="fa-solid fa-fire w-5"></i> Trending</a>
+  <a href="#" onclick="switchPage('images')" id="nav-images"><i class="fa-solid fa-image w-5"></i> Images</a>
+  <a href="#" onclick="switchPage('tools')" id="nav-tools"><i class="fa-solid fa-wrench w-5"></i> Tools</a>
+  <hr class="border-gray-800 my-3">
+  <p class="text-xs text-gray-600 px-3 mb-2">Explore</p>
+  <a href="#" onclick="switchPage('music')" id="nav-music"><i class="fa-solid fa-music w-5"></i> Music</a>
+  <a href="#" onclick="switchPage('gaming')" id="nav-gaming"><i class="fa-solid fa-gamepad w-5"></i> Gaming</a>
+  <a href="#" onclick="switchPage('news')" id="nav-news"><i class="fa-solid fa-newspaper w-5"></i> News</a>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Search -->
+  <div class="search-bar mb-6">
+    <input type="text" id="searchInput" placeholder="Search videos..." onkeydown="if(event.key==='Enter')searchVideos()" />
+  </div>
+
+  <!-- Tabs -->
+  <div class="nav-tabs" id="pageTabs">
+    <button class="active" onclick="switchPage('home')">🏠 Home</button>
+    <button onclick="switchPage('trending')">🔥 Trending</button>
+    <button onclick="switchPage('images')">🖼 Images</button>
+    <button onclick="switchPage('tools')">🔧 Tools</button>
+  </div>
+
+  <!-- HOME Page -->
+  <div id="page-home" class="page active">
+    <div class="video-grid" id="homeGrid"><div class="loader"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading...</p></div></div>
+  </div>
+
+  <!-- TRENDING Page -->
+  <div id="page-trending" class="page">
+    <h2 class="text-lg font-bold mb-4">🔥 Trending</h2>
+    <div class="video-grid" id="trendingGrid"><div class="loader"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading...</p></div></div>
+  </div>
+
+  <!-- SEARCH Results -->
+  <div id="page-search" class="page">
+    <h2 class="text-lg font-bold mb-4">Search Results: <span id="searchQuery" class="text-blue-400"></span></h2>
+    <div class="video-grid" id="searchGrid"></div>
+  </div>
+
+  <!-- IMAGES Page -->
+  <div id="page-images" class="page">
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="imageSearch" placeholder="Search images..." class="flex-1 bg-[#1a1a1a] border border-[#333] rounded-full px-4 py-2 text-sm text-white outline-none"
+        onkeydown="if(event.key==='Enter')searchImages()" />
+      <button onclick="searchImages()" class="bg-blue-500 text-white px-4 rounded-full text-sm font-bold">Search</button>
+    </div>
+    <div class="image-grid" id="imageGrid"><div class="loader"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading images...</p></div></div>
+  </div>
+
+  <!-- TOOLS Page -->
+  <div id="page-tools" class="page">
+    <h2 class="text-lg font-bold mb-4">🔧 Tools</h2>
+    <div class="tools-grid" id="toolsGrid"></div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <a href="#" onclick="switchPage('home')" class="active"><i class="fa-solid fa-house"></i>Home</a>
+  <a href="#" onclick="switchPage('trending')"><i class="fa-solid fa-fire"></i>Trending</a>
+  <a href="#" onclick="switchPage('images')"><i class="fa-solid fa-image"></i>Images</a>
+  <a href="#" onclick="switchPage('tools')"><i class="fa-solid fa-wrench"></i>Tools</a>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentPage = 'home';
+
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tabs button, .sidebar a, .bottom-nav a').forEach(b => b.classList.remove('active'));
+  
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  
+  document.querySelectorAll('[onclick*="' + page + '"]').forEach(b => b.classList.add('active'));
+  
+  if (page === 'trending') loadTrending();
+  if (page === 'images') loadImages();
+  if (page === 'tools') loadTools();
+}
+
+// ─── Video Card ───
+function videoCard(v) {
+  const avatar = (v.author || '?')[0].toUpperCase();
+  return '<div class="video-card" onclick="window.open(\'' + (v.url || 'https://youtube.com/watch?v=' + v.id) + '\',\'_blank\')">' +
+    '<div class="thumb"><img src="' + v.thumbnail + '" alt="' + escapeHtml(v.title) + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div style=\\\'display:flex;align-items:center;justify-content:center;height:100%;color:#555;font-size:40px\\\'><i class=\\\'fa-solid fa-play\\\'></i></div>\'" /></div>' +
+    '<div class="info">' +
+    '<div class="avatar">' + avatar + '</div>' +
+    '<div><div class="text-sm font-medium line-clamp-2">' + escapeHtml(v.title) + '</div>' +
+    '<div class="text-xs text-gray-400 mt-1">' + escapeHtml(v.author || '') + '</div></div></div></div>';
+}
+
+function escapeHtml(t) { if (!t) return ''; return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── Load Home ───
+async function loadHome() {
+  const grid = document.getElementById('homeGrid');
+  grid.innerHTML = '<div class="loader"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading...</p></div>';
+  try {
+    const res = await fetch(API + '/api/youtube/trending');
+    const data = await res.json();
+    const videos = data.results || [];
+    grid.innerHTML = videos.length ? videos.map(videoCard).join('') : '<p class="text-gray-500 col-span-full text-center py-10">No videos loaded</p>';
+  } catch { grid.innerHTML = '<p class="text-gray-500 text-center py-10">Failed to load</p>'; }
+}
+
+// ─── Load Trending ───
+async function loadTrending() {
+  const grid = document.getElementById('trendingGrid');
+  grid.innerHTML = '<div class="loader"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading...</p></div>';
+  try {
+    const res = await fetch(API + '/api/youtube/trending');
+    const data = await res.json();
+    const videos = data.results || [];
+    grid.innerHTML = videos.length ? videos.map(videoCard).join('') : '<p class="text-gray-500 text-center py-10">No trending videos</p>';
+  } catch { grid.innerHTML = '<p class="text-gray-500 text-center py-10">Failed</p>'; }
+}
+
+// ─── Search Videos ───
+async function searchVideos() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  switchPage('search');
+  document.getElementById('searchQuery').textContent = q;
+  const grid = document.getElementById('searchGrid');
+  grid.innerHTML = '<div class="loader col-span-full"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Searching...</p></div>';
+  try {
+    const res = await fetch(API + '/api/youtube/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    const videos = data.results || [];
+    grid.innerHTML = videos.length ? videos.map(videoCard).join('') : '<p class="text-gray-500 col-span-full text-center py-10">No results for "' + q + '"</p>';
+  } catch { grid.innerHTML = '<p class="text-gray-500 text-center py-10">Search failed</p>'; }
+}
+
+// ─── Images ───
+async function loadImages(q) {
+  const grid = document.getElementById('imageGrid');
+  grid.innerHTML = '<div class="loader col-span-full"><i class="fa-solid fa-spinner"></i><p class="mt-2 text-sm">Loading...</p></div>';
+  try {
+    const url = q ? (API + '/api/images/search?q=' + encodeURIComponent(q)) : (API + '/api/images/trending');
+    const res = await fetch(url);
+    const data = await res.json();
+    const images = data.results || [];
+    grid.innerHTML = images.length ? images.map(img =>
+      '<div class="image-card" onclick="window.open(\'' + (img.download || img.url) + '\',\'_blank\')">' +
+      '<img src="' + img.url + '" alt="' + escapeHtml(img.description) + '" loading="lazy" />' +
+      '<div class="overlay"><p class="text-white font-medium">' + escapeHtml(img.author) + '</p></div></div>'
+    ).join('') : '<p class="text-gray-500 col-span-full text-center py-10">No images found</p>';
+  } catch { grid.innerHTML = '<p class="text-gray-500 text-center py-10">Failed to load</p>'; }
+}
+
+function searchImages() {
+  const q = document.getElementById('imageSearch').value.trim();
+  loadImages(q || 'nature');
+}
+
+// ─── Tools ───
+function loadTools() {
+  const grid = document.getElementById('toolsGrid');
+  const tools = [
+    { id:'weather', icon:'🌤', name:'Weather', desc:'Get weather for any city', fields:[{name:'city',placeholder:'City name...'}] },
+    { id:'translate', icon:'🌍', name:'Translate', desc:'Translate text to another language', fields:[{name:'text',placeholder:'Text to translate...'},{name:'target',placeholder:'Target language code (es, fr, de...)',value:'es'}] },
+    { id:'qr', icon:'📱', name:'QR Code', desc:'Generate QR codes', fields:[{name:'text',placeholder:'Text or URL...'}] },
+    { id:'password', icon:'🔐', name:'Password Generator', desc:'Generate secure passwords', fields:[{name:'length',placeholder:'Length (default: 16)',value:'16'}] },
+    { id:'lyrics', icon:'🎵', name:'Lyrics Finder', desc:'Find song lyrics', fields:[{name:'artist',placeholder:'Artist name...'},{name:'title',placeholder:'Song title...'}] },
+    { id:'ip', icon:'🌐', name:'My IP', desc:'Check your IP address', fields:[] },
+  ];
+  
+  grid.innerHTML = tools.map(t => {
+    const inputs = t.fields.map(f =>
+      '<input type="text" id="tool-' + t.id + '-' + f.name + '" placeholder="' + f.placeholder + '" value="' + (f.value||'') + '" />'
+    ).join('');
+    return '<div class="tool-card">' +
+      '<h3>' + t.icon + ' ' + t.name + '</h3>' +
+      '<p>' + t.desc + '</p>' +
+      inputs +
+      '<button onclick="runTool(\'' + t.id + '\')">Run</button>' +
+      '<div id="result-' + t.id + '" class="tool-result"></div></div>';
+  }).join('');
+}
+
+async function runTool(id) {
+  const resultEl = document.getElementById('result-' + id);
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  
+  try {
+    let url = '';
+    if (id === 'weather') url = API + '/api/tools/weather?city=' + encodeURIComponent(document.getElementById('tool-weather-city').value || 'London');
+    else if (id === 'translate') {
+      const text = document.getElementById('tool-translate-text').value;
+      const target = document.getElementById('tool-translate-target').value || 'es';
+      url = API + '/api/tools/translate?text=' + encodeURIComponent(text) + '&target=' + target;
+    } else if (id === 'qr') url = API + '/api/tools/qr?text=' + encodeURIComponent(document.getElementById('tool-qr-text').value || 'Hello');
+    else if (id === 'password') url = API + '/api/tools/password?length=' + (document.getElementById('tool-password-length').value || 16);
+    else if (id === 'lyrics') url = API + '/api/tools/lyrics?artist=' + encodeURIComponent(document.getElementById('tool-lyrics-artist').value || '') + '&title=' + encodeURIComponent(document.getElementById('tool-lyrics-title').value || '');
+    else if (id === 'ip') url = API + '/api/tools/ip';
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    resultEl.innerHTML = '<pre style="font-family:monospace;font-size:12px;line-height:1.5">' + JSON.stringify(data, null, 2) + '</pre>';
+    
+    if (id === 'qr' && data.url) {
+      resultEl.innerHTML += '<br><img src="' + data.url + '" style="max-width:200px;border-radius:8px;margin-top:8px" />';
+    }
+  } catch(e) {
+    resultEl.innerHTML = 'Error: ' + e.message;
+  }
+}
+
+// Init
+loadHome();
+</script>
+</body>
+</html>

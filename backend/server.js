@@ -1,62 +1,156 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
-const http = require("http");
-const { Server } = require("socket.io");
-
-dotenv.config();
+const path = require("path");
 
 const app = express();
-const server = http.createServer(app);
+const PORT = process.env.PORT || 3000;
 
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL
-      ? process.env.FRONTEND_URL.split(",")
-      : ["http://localhost:5173", "http://localhost:3000"],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── YouTube Search (working via oembed + search) ───
+app.get("/api/youtube/search", async (req, res) => {
+  const q = String(req.query.q || "");
+  if (!q) return res.json({ results: [] });
+  try {
+    const r = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=en`);
+    const html = await r.text();
+    const ids = [...html.matchAll(/watch\?v=([a-zA-Z0-9_-]{11})/g)].map(m => m[1]);
+    const unique = [...new Set(ids)].slice(0, 20);
+    
+    const results = await Promise.all(unique.map(async (id) => {
+      try {
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`).then(r => r.json());
+        return {
+          id, title: oembed.title || "Untitled",
+          thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+          author: oembed.author_name || "Unknown",
+          url: `https://www.youtube.com/watch?v=${id}`
+        };
+      } catch { return null; }
+    }));
+    res.json({ results: results.filter(Boolean) });
+  } catch { res.json({ results: [] }); }
 });
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(",")
-    : ["http://localhost:5173", "http://localhost:3000"],
-  credentials: true
-}));
-app.use(express.json({ limit: "50mb" }));      // allow bigger payloads for base64
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
-// Routes
-app.use("/api/auth",   require("./routes/auth"));
-app.use("/api/youtube", require("./routes/youtube"));
-app.use("/api/music",   require("./routes/music"));
-app.use("/api/social",  require("./routes/social"));
-
-// Health check
-app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
-
-// Socket.IO
-require("./chat/socket")(io);
-
-// MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => {
-    console.error("MongoDB connection failed:", err);
-    process.exit(1);
-  });
-
-// Error handler (basic)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Internal Server Error" });
+app.get("/api/youtube/trending", async (req, res) => {
+  try {
+    const r = await fetch("https://www.youtube.com/feed/trending?hl=en");
+    const html = await r.text();
+    const ids = [...html.matchAll(/watch\?v=([a-zA-Z0-9_-]{11})/g)].map(m => m[1]);
+    const unique = [...new Set(ids)].slice(0, 30);
+    
+    const results = await Promise.all(unique.map(async (id) => {
+      try {
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`).then(r => r.json());
+        return {
+          id, title: oembed.title || "Untitled",
+          thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+          author: oembed.author_name || "Unknown", views: "Trending",
+          url: `https://www.youtube.com/watch?v=${id}`
+        };
+      } catch { return null; }
+    }));
+    res.json({ results: results.filter(Boolean) });
+  } catch { res.json({ results: [] }); }
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// ─── Images (Unsplash) ───
+app.get("/api/images/search", async (req, res) => {
+  const q = String(req.query.q || "nature");
+  try {
+    const r = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=20`, {
+      headers: { 'Authorization': `Client-ID ${process.env.UNSPLASH_KEY || 'demo'}` }
+    });
+    const data = await r.json();
+    const results = (data.results || []).map(img => ({
+      id: img.id, url: img.urls?.regular || img.urls?.small || '',
+      thumb: img.urls?.thumb || '', description: img.alt_description || '',
+      author: img.user?.name || 'Unknown',
+      download: img.links?.download || img.urls?.full || ''
+    }));
+    res.json({ results });
+  } catch { res.json({ results: [] }); }
 });
+
+app.get("/api/images/trending", async (req, res) => {
+  try {
+    const r = await fetch(`https://api.unsplash.com/photos?per_page=30&order_by=popular`, {
+      headers: { 'Authorization': `Client-ID ${process.env.UNSPLASH_KEY || 'demo'}` }
+    });
+    const data = await r.json();
+    const results = (data || []).map(img => ({
+      id: img.id, url: img.urls?.regular || '', thumb: img.urls?.thumb || '',
+      description: img.alt_description || '', author: img.user?.name || 'Unknown',
+      download: img.links?.download || img.urls?.full || ''
+    }));
+    res.json({ results });
+  } catch { res.json({ results: [] }); }
+});
+
+// ─── Tools ───
+app.get("/api/tools/weather", async (req, res) => {
+  const city = String(req.query.city || "london");
+  try {
+    const r = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+    const data = await r.json();
+    const c = data?.current_condition?.[0] || {};
+    res.json({
+      city, temp: c.temp_C + "°C", condition: c.weatherDesc?.[0]?.value || "N/A",
+      humidity: c.humidity + "%", wind: c.windspeedKmph + " km/h",
+      feelsLike: c.FeelsLikeC + "°C"
+    });
+  } catch { res.json({ error: "Weather unavailable" }); }
+});
+
+app.get("/api/tools/translate", async (req, res) => {
+  const text = String(req.query.text || "");
+  const target = String(req.query.target || "es");
+  if (!text) return res.json({ error: "Text required" });
+  try {
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${target}`);
+    const data = await r.json();
+    res.json({ translated: data?.responseData?.translatedText || text, target });
+  } catch { res.json({ error: "Translation failed" }); }
+});
+
+app.get("/api/tools/qr", (req, res) => {
+  const text = String(req.query.text || "");
+  if (!text) return res.json({ error: "Text required" });
+  res.json({ url: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`, text });
+});
+
+app.get("/api/tools/password", (req, res) => {
+  const len = Number(req.query.length) || 16;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+  let password = '';
+  for (let i = 0; i < len; i++) password += chars[Math.floor(Math.random() * chars.length)];
+  res.json({ password, length: len });
+});
+
+app.get("/api/tools/lyrics", async (req, res) => {
+  const artist = String(req.query.artist || "");
+  const title = String(req.query.title || "");
+  if (!artist || !title) return res.json({ error: "Artist and title required" });
+  try {
+    const r = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+    const data = await r.json();
+    res.json({ lyrics: data?.lyrics || "Not found", artist, title });
+  } catch { res.json({ error: "Lyrics not found" }); }
+});
+
+app.get("/api/tools/ip", async (req, res) => {
+  try {
+    const r = await fetch('https://api.ipify.org?format=json');
+    const data = await r.json();
+    res.json({ ip: data.ip || "Unknown" });
+  } catch { res.json({ error: "Failed" }); }
+});
+
+// ─── Serve Frontend ───
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => console.log(`🚀 StreamMe running on http://localhost:${PORT}`));

@@ -1,30 +1,9 @@
 {
   "name": "streamme",
-  "version": "1.0.0",
-  "private": true,
+  "version": "2.0.0",
+  "description": "StreamMe — YouTube-style streaming platform",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "frontend:dev": "cd frontend && npm run dev",
-    "frontend:build": "cd frontend && npm run build",
-    "build": "npm run frontend:build",
-    "install:all": "npm install && cd frontend && npm install"
-  },
-  "dependencies": {
-    "axios": "^1.7.2",
-    "bcrypt": "^5.1.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.0",
-    "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.7.0",
-    "socket.io": "^4.8.0",
-    "youtubei.js": "^16.0.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.7"
-  },
-  "engines": {
-    "node": ">=18"
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev"
   }
 }
