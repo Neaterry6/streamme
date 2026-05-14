@@ -153,4 +153,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`🚀 StreamMe running on http://localhost:${PORT}`));
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  app.listen(PORT, () => console.log(`🚀 StreamMe running on http://localhost:${PORT}`));
+}
